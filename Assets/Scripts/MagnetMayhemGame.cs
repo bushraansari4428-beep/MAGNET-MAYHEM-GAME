@@ -100,6 +100,11 @@ namespace MagnetMayhem
         private Transform _levelGridContainer;
         private Transform _shopGridContainer;
 
+        private RectTransform _playBtnRect;
+        private RectTransform _levelSelectBtnRect;
+        private RectTransform _shopBtnRect;
+        private RectTransform _settingsBtnRect;
+
         private void Awake()
         {
             Application.targetFrameRate = 60;
@@ -155,7 +160,8 @@ namespace MagnetMayhem
             {
                 GameObject es = new GameObject("EventSystem");
                 es.AddComponent<EventSystem>();
-                es.AddComponent<StandaloneInputModule>();
+                StandaloneInputModule sim = es.AddComponent<StandaloneInputModule>();
+                sim.forceModuleActive = true;
             }
         }
 
@@ -288,6 +294,28 @@ namespace MagnetMayhem
                 _floatingFeedbackText.color = c;
             }
 
+            // Main Menu Direct Touch Fallback
+            if (CurrentState == GameState.MAIN_MENU)
+            {
+                Vector2 screenPos = Vector2.zero;
+                bool hasTouch = false;
+                if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
+                {
+                    screenPos = Input.GetTouch(0).position;
+                    hasTouch = true;
+                }
+                else if (Input.GetMouseButtonDown(0))
+                {
+                    screenPos = Input.mousePosition;
+                    hasTouch = true;
+                }
+
+                if (hasTouch)
+                {
+                    CheckMainMenuTouch(screenPos);
+                }
+            }
+
             // Gameplay Active Loop
             if (CurrentState == GameState.ATTRACT_MODE || CurrentState == GameState.REPEL_MODE)
             {
@@ -339,6 +367,35 @@ namespace MagnetMayhem
             Color c = _pulseWaveRing.color;
             c.a = Mathf.Sin(_pulseWaveProgress * Mathf.PI) * 0.55f;
             _pulseWaveRing.color = c;
+        }
+
+        private void CheckMainMenuTouch(Vector2 screenPos)
+        {
+            if (_playBtnRect != null && RectTransformUtility.RectangleContainsScreenPoint(_playBtnRect, screenPos, null))
+            {
+                ProceduralAudioController.Instance?.PlayClick();
+                _currentScore = 0;
+                StartLevel(_unlockedLevel);
+                return;
+            }
+            if (_levelSelectBtnRect != null && RectTransformUtility.RectangleContainsScreenPoint(_levelSelectBtnRect, screenPos, null))
+            {
+                ProceduralAudioController.Instance?.PlayClick();
+                ShowState(GameState.LEVEL_SELECT);
+                return;
+            }
+            if (_shopBtnRect != null && RectTransformUtility.RectangleContainsScreenPoint(_shopBtnRect, screenPos, null))
+            {
+                ProceduralAudioController.Instance?.PlayClick();
+                OpenShopPanel();
+                return;
+            }
+            if (_settingsBtnRect != null && RectTransformUtility.RectangleContainsScreenPoint(_settingsBtnRect, screenPos, null))
+            {
+                ProceduralAudioController.Instance?.PlayClick();
+                _settingsPanel.SetActive(true);
+                return;
+            }
         }
 
         private bool IsGameplayTapDetected()
@@ -767,6 +824,9 @@ namespace MagnetMayhem
         {
             _uiFont = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             if (_uiFont == null) _uiFont = Resources.GetBuiltinResource<Font>("Arial.ttf");
+            if (_uiFont == null) _uiFont = Font.CreateDynamicFontFromOSFont("Roboto", 28);
+            if (_uiFont == null) _uiFont = Font.CreateDynamicFontFromOSFont("sans-serif", 28);
+            if (_uiFont == null) _uiFont = Font.CreateDynamicFontFromOSFont("Arial", 28);
 
             GameObject canvasObj = new GameObject("MagnetMayhem_UICanvas");
             _mainCanvas = canvasObj.AddComponent<Canvas>();
@@ -810,37 +870,41 @@ namespace MagnetMayhem
             _menuCoinsText = CreateLabel(statsCard.transform, "COINS: 150", 36, new Color(1f, 0.85f, 0.2f), new Vector2(190, 0), new Vector2(340, 70));
 
             // Prominent PLAY Button
-            CreateNeonButton(_mainMenuPanel.transform, "PLAY NOW", new Vector2(0, 60), new Vector2(680, 150),
+            Button playBtn = CreateNeonButton(_mainMenuPanel.transform, "PLAY NOW", new Vector2(0, 60), new Vector2(680, 150),
                 new Color(0.10f, 0.72f, 1.0f), 52, () =>
                 {
                     ProceduralAudioController.Instance?.PlayClick();
                     _currentScore = 0;
                     StartLevel(_unlockedLevel);
                 });
+            _playBtnRect = playBtn.GetComponent<RectTransform>();
 
             // LEVEL SELECT Button
-            CreateNeonButton(_mainMenuPanel.transform, "LEVEL SELECT", new Vector2(0, -135), new Vector2(680, 125),
+            Button lvlBtn = CreateNeonButton(_mainMenuPanel.transform, "LEVEL SELECT", new Vector2(0, -135), new Vector2(680, 125),
                 new Color(0.22f, 0.38f, 0.78f), 40, () =>
                 {
                     ProceduralAudioController.Instance?.PlayClick();
                     ShowState(GameState.LEVEL_SELECT);
                 });
+            _levelSelectBtnRect = lvlBtn.GetComponent<RectTransform>();
 
             // MAGNET SHOP Button
-            CreateNeonButton(_mainMenuPanel.transform, "MAGNET SHOP", new Vector2(0, -305), new Vector2(680, 125),
+            Button shopBtn = CreateNeonButton(_mainMenuPanel.transform, "MAGNET SHOP", new Vector2(0, -305), new Vector2(680, 125),
                 new Color(0.65f, 0.18f, 0.85f), 40, () =>
                 {
                     ProceduralAudioController.Instance?.PlayClick();
                     OpenShopPanel();
                 });
+            _shopBtnRect = shopBtn.GetComponent<RectTransform>();
 
             // SETTINGS Button
-            CreateNeonButton(_mainMenuPanel.transform, "SETTINGS & AUDIO", new Vector2(0, -475), new Vector2(680, 125),
+            Button setBtn = CreateNeonButton(_mainMenuPanel.transform, "SETTINGS & AUDIO", new Vector2(0, -475), new Vector2(680, 125),
                 new Color(0.18f, 0.24f, 0.38f), 38, () =>
                 {
                     ProceduralAudioController.Instance?.PlayClick();
                     _settingsPanel.SetActive(true);
                 });
+            _settingsBtnRect = setBtn.GetComponent<RectTransform>();
         }
 
         private void BuildLevelSelectPanel(Transform root)
@@ -1144,7 +1208,7 @@ namespace MagnetMayhem
             go.transform.SetParent(parent, false);
             Image img = go.AddComponent<Image>();
             img.color = bgColor;
-            img.raycastTarget = (bgColor.a > 0.05f);
+            img.raycastTarget = false;
             RectTransform rt = go.GetComponent<RectTransform>();
             rt.anchorMin = Vector2.zero;
             rt.anchorMax = Vector2.one;
@@ -1159,6 +1223,7 @@ namespace MagnetMayhem
             go.transform.SetParent(parent, false);
             Image img = go.AddComponent<Image>();
             img.color = color;
+            img.raycastTarget = false;
             RectTransform rt = go.GetComponent<RectTransform>();
             rt.anchoredPosition = anchoredPos;
             rt.sizeDelta = size;
@@ -1190,10 +1255,18 @@ namespace MagnetMayhem
             go.transform.SetParent(parent, false);
             Image img = go.AddComponent<Image>();
             img.color = bgCol;
+            img.raycastTarget = true;
 
             Button btn = go.AddComponent<Button>();
             btn.targetGraphic = img;
             btn.onClick.AddListener(onClick);
+
+            ColorBlock cb = btn.colors;
+            cb.normalColor = bgCol;
+            cb.highlightedColor = Color.Lerp(bgCol, Color.white, 0.35f);
+            cb.pressedColor = Color.white;
+            cb.selectedColor = bgCol;
+            btn.colors = cb;
 
             RectTransform rt = go.GetComponent<RectTransform>();
             rt.anchoredPosition = pos;
