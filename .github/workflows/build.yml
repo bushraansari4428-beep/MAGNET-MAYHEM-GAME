@@ -5,6 +5,9 @@ on:
     branches: [ main ]
   workflow_dispatch:
 
+permissions:
+  contents: write
+
 jobs:
   build:
     name: Build Android APK
@@ -40,3 +43,14 @@ jobs:
         with:
           name: MagnetMayhem-Android-APK
           path: build/Android/MagnetMayhem.apk
+
+      - name: Release APK
+        uses: softprops/action-gh-release@v2
+        if: success()
+        with:
+          tag_name: v1.0.0
+          name: "Magnet Mayhem v1.0.0 (ARM64 64-Bit)"
+          body: "Official 64-bit ARM64 + ARMv7 Android APK for Magnet Mayhem. Fully compatible with Android 7.0 through Android 15."
+          files: build/Android/MagnetMayhem.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
