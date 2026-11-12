@@ -36,7 +36,8 @@ jobs:
           targetPlatform: Android
           buildName: MagnetMayhem
           buildsPath: build
-          customBuildMethod: MagnetMayhem.EditorTools.MagnetMayhemEditorBuilder.BuildAndroid
+          buildMethod: MagnetMayhem.EditorTools.MagnetMayhemEditorBuilder.BuildAndroid
+          androidTargetSdkVersion: '34'
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

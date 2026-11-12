@@ -13,6 +13,26 @@ namespace MagnetMayhem.EditorTools
         static MagnetMayhemEditorBuilder()
         {
             EnsureSceneInBuildSettings();
+            ConfigurePlayerSettings();
+        }
+
+        public static void ConfigurePlayerSettings()
+        {
+            PlayerSettings.companyName = "NeonArcadeStudios";
+            PlayerSettings.productName = "Magnet Mayhem";
+            PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Android, "com.NeonArcadeStudios.MagnetMayhem");
+            PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
+            PlayerSettings.allowedAutorotateToPortrait = true;
+            PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
+            PlayerSettings.allowedAutorotateToLandscapeLeft = false;
+            PlayerSettings.allowedAutorotateToLandscapeRight = false;
+
+            // Configure 64-bit ARM64 + ARMv7 architecture for full Android 13/14/15 device compatibility
+            PlayerSettings.SetScriptingBackend(BuildTargetGroup.Android, ScriptingImplementation.IL2CPP);
+            PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64 | AndroidArchitecture.ARMv7;
+            PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel24;
+            PlayerSettings.Android.targetSdkVersion = (AndroidSdkVersions)34;
+            Debug.Log("✅ [MagnetMayhem] Configured IL2CPP ARM64+ARMv7 & Android SDK 34 (Android 14).");
         }
 
         public static void EnsureSceneInBuildSettings()
@@ -43,23 +63,9 @@ namespace MagnetMayhem.EditorTools
 
         public static void BuildAndroid()
         {
-            Debug.Log("🚀 Starting Magnet Mayhem Android Build Pipeline...");
+            Debug.Log("🚀 Starting Magnet Mayhem Android Build Pipeline (IL2CPP 64-Bit)...");
             EnsureSceneInBuildSettings();
-
-            PlayerSettings.companyName = "NeonArcadeStudios";
-            PlayerSettings.productName = "Magnet Mayhem";
-            PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.Android, "com.NeonArcadeStudios.MagnetMayhem");
-            PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
-            PlayerSettings.allowedAutorotateToPortrait = true;
-            PlayerSettings.allowedAutorotateToPortraitUpsideDown = false;
-            PlayerSettings.allowedAutorotateToLandscapeLeft = false;
-            PlayerSettings.allowedAutorotateToLandscapeRight = false;
-
-            // Configure 64-bit ARM64 + ARMv7 architecture for full Android 13/14/15 device compatibility
-            PlayerSettings.SetScriptingBackend(BuildTargetGroup.Android, ScriptingImplementation.IL2CPP);
-            PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64 | AndroidArchitecture.ARMv7;
-            PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel24;
-            PlayerSettings.Android.targetSdkVersion = (AndroidSdkVersions)34;
+            ConfigurePlayerSettings();
 
             string outDir = "build/Android";
             if (!Directory.Exists(outDir))
@@ -97,6 +103,7 @@ namespace MagnetMayhem.EditorTools
             PlayerSettings.defaultInterfaceOrientation = UIOrientation.Portrait;
 
             EnsureSceneInBuildSettings();
+            ConfigurePlayerSettings();
 
             MagnetMayhemGame existing = Object.FindObjectOfType<MagnetMayhemGame>();
             if (existing == null)
