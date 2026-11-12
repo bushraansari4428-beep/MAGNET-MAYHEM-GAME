@@ -59,7 +59,7 @@ namespace MagnetMayhem.EditorTools
             PlayerSettings.SetScriptingBackend(BuildTargetGroup.Android, ScriptingImplementation.IL2CPP);
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64 | AndroidArchitecture.ARMv7;
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel24;
-            PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevel34;
+            PlayerSettings.Android.targetSdkVersion = (AndroidSdkVersions)34;
 
             string outDir = "build/Android";
             if (!Directory.Exists(outDir))

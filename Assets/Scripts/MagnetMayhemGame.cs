@@ -160,8 +160,7 @@ namespace MagnetMayhem
             {
                 GameObject es = new GameObject("EventSystem");
                 es.AddComponent<EventSystem>();
-                StandaloneInputModule sim = es.AddComponent<StandaloneInputModule>();
-                sim.forceModuleActive = true;
+                es.AddComponent<StandaloneInputModule>();
             }
         }
 
