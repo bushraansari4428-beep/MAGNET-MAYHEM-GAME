@@ -33,7 +33,7 @@ jobs:
           targetPlatform: Android
           buildName: MagnetMayhem
           buildsPath: build
-          androidExportType: androidPackage
+          customBuildMethod: MagnetMayhem.EditorTools.MagnetMayhemEditorBuilder.BuildAndroid
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
