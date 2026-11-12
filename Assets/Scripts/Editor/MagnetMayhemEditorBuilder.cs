@@ -32,6 +32,27 @@ namespace MagnetMayhem.EditorTools
             PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64 | AndroidArchitecture.ARMv7;
             PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel24;
             PlayerSettings.Android.targetSdkVersion = (AndroidSdkVersions)34;
+
+            try
+            {
+                var assets = AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/ProjectSettings.asset");
+                if (assets != null && assets.Length > 0)
+                {
+                    SerializedObject projectSettings = new SerializedObject(assets[0]);
+                    SerializedProperty activeInputHandlerProp = projectSettings.FindProperty("activeInputHandler");
+                    if (activeInputHandlerProp != null)
+                    {
+                        activeInputHandlerProp.intValue = 2;
+                        projectSettings.ApplyModifiedProperties();
+                        Debug.Log("✅ [MagnetMayhem] Configured Active Input Handling = 2 (Both Old & New Input Systems).");
+                    }
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Debug.LogWarning("InputHandler config note: " + ex.Message);
+            }
+
             Debug.Log("✅ [MagnetMayhem] Configured IL2CPP ARM64+ARMv7 & Android SDK 34 (Android 14).");
         }
 

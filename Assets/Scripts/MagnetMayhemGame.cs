@@ -298,15 +298,30 @@ namespace MagnetMayhem
             {
                 Vector2 screenPos = Vector2.zero;
                 bool hasTouch = false;
-                if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
+                try
                 {
-                    screenPos = Input.GetTouch(0).position;
-                    hasTouch = true;
+                    if (Input.touchCount > 0)
+                    {
+                        for (int i = 0; i < Input.touchCount; i++)
+                        {
+                            Touch t = Input.GetTouch(i);
+                            if (t.phase == TouchPhase.Began || t.phase == TouchPhase.Ended)
+                            {
+                                screenPos = t.position;
+                                hasTouch = true;
+                                break;
+                            }
+                        }
+                    }
+                    else if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonUp(0))
+                    {
+                        screenPos = Input.mousePosition;
+                        hasTouch = true;
+                    }
                 }
-                else if (Input.GetMouseButtonDown(0))
+                catch (System.Exception ex)
                 {
-                    screenPos = Input.mousePosition;
-                    hasTouch = true;
+                    Debug.LogWarning("Input read warning: " + ex.Message);
                 }
 
                 if (hasTouch)
@@ -370,26 +385,44 @@ namespace MagnetMayhem
 
         private void CheckMainMenuTouch(Vector2 screenPos)
         {
-            if (_playBtnRect != null && RectTransformUtility.RectangleContainsScreenPoint(_playBtnRect, screenPos, null))
+            float normX = (Screen.width > 0) ? (screenPos.x / Screen.width) : 0.5f;
+            float normY = (Screen.height > 0) ? (screenPos.y / Screen.height) : 0.5f;
+
+            bool hitPlay = (_playBtnRect != null && (RectTransformUtility.RectangleContainsScreenPoint(_playBtnRect, screenPos, null) || RectTransformUtility.RectangleContainsScreenPoint(_playBtnRect, screenPos, _mainCam)))
+                           || (normX >= 0.12f && normX <= 0.88f && normY >= 0.48f && normY <= 0.59f);
+
+            if (hitPlay)
             {
                 ProceduralAudioController.Instance?.PlayClick();
                 _currentScore = 0;
                 StartLevel(_unlockedLevel);
                 return;
             }
-            if (_levelSelectBtnRect != null && RectTransformUtility.RectangleContainsScreenPoint(_levelSelectBtnRect, screenPos, null))
+
+            bool hitLvl = (_levelSelectBtnRect != null && (RectTransformUtility.RectangleContainsScreenPoint(_levelSelectBtnRect, screenPos, null) || RectTransformUtility.RectangleContainsScreenPoint(_levelSelectBtnRect, screenPos, _mainCam)))
+                          || (normX >= 0.12f && normX <= 0.88f && normY >= 0.39f && normY <= 0.48f);
+
+            if (hitLvl)
             {
                 ProceduralAudioController.Instance?.PlayClick();
                 ShowState(GameState.LEVEL_SELECT);
                 return;
             }
-            if (_shopBtnRect != null && RectTransformUtility.RectangleContainsScreenPoint(_shopBtnRect, screenPos, null))
+
+            bool hitShop = (_shopBtnRect != null && (RectTransformUtility.RectangleContainsScreenPoint(_shopBtnRect, screenPos, null) || RectTransformUtility.RectangleContainsScreenPoint(_shopBtnRect, screenPos, _mainCam)))
+                           || (normX >= 0.12f && normX <= 0.88f && normY >= 0.31f && normY <= 0.39f);
+
+            if (hitShop)
             {
                 ProceduralAudioController.Instance?.PlayClick();
                 OpenShopPanel();
                 return;
             }
-            if (_settingsBtnRect != null && RectTransformUtility.RectangleContainsScreenPoint(_settingsBtnRect, screenPos, null))
+
+            bool hitSettings = (_settingsBtnRect != null && (RectTransformUtility.RectangleContainsScreenPoint(_settingsBtnRect, screenPos, null) || RectTransformUtility.RectangleContainsScreenPoint(_settingsBtnRect, screenPos, _mainCam)))
+                              || (normX >= 0.12f && normX <= 0.88f && normY >= 0.22f && normY <= 0.31f);
+
+            if (hitSettings)
             {
                 ProceduralAudioController.Instance?.PlayClick();
                 _settingsPanel.SetActive(true);
@@ -402,15 +435,30 @@ namespace MagnetMayhem
             bool pressed = false;
             Vector2 screenPos = Vector2.zero;
 
-            if (Input.touchCount > 0 && Input.GetTouch(0).phase == TouchPhase.Began)
+            try
             {
-                pressed = true;
-                screenPos = Input.GetTouch(0).position;
+                if (Input.touchCount > 0)
+                {
+                    for (int i = 0; i < Input.touchCount; i++)
+                    {
+                        Touch t = Input.GetTouch(i);
+                        if (t.phase == TouchPhase.Began || t.phase == TouchPhase.Ended)
+                        {
+                            pressed = true;
+                            screenPos = t.position;
+                            break;
+                        }
+                    }
+                }
+                else if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonUp(0))
+                {
+                    pressed = true;
+                    screenPos = Input.mousePosition;
+                }
             }
-            else if (Input.GetMouseButtonDown(0))
+            catch (System.Exception ex)
             {
-                pressed = true;
-                screenPos = Input.mousePosition;
+                Debug.LogWarning("Gameplay input warning: " + ex.Message);
             }
 
             if (!pressed) return false;
@@ -1273,6 +1321,16 @@ namespace MagnetMayhem
 
             AddGlowOutline(go, Color.Lerp(bgCol, Color.white, 0.55f), 3f);
             CreateLabel(go.transform, label, fontSize, Color.white, Vector2.zero, size - new Vector2(20, 10));
+
+            // Instant zero-latency touch responses for Android
+            TouchButtonHandler touch = go.AddComponent<TouchButtonHandler>();
+            touch.Initialize(onClick, bgCol, Color.white);
+
+            EventTrigger trigger = go.AddComponent<EventTrigger>();
+            EventTrigger.Entry entryDown = new EventTrigger.Entry { eventID = EventTriggerType.PointerDown };
+            entryDown.callback.AddListener((d) => { onClick?.Invoke(); });
+            trigger.triggers.Add(entryDown);
+
             return btn;
         }
 

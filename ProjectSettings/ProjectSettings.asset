@@ -20,7 +20,8 @@ PlayerSettings:
   m_ShowUnitySplashScreen: 1
   m_ShowUnityScreen: 1
   m_RenderingPath: 1
-  bundleVersion: 1.0.0
+  bundleVersion: 1.0.1
   AndroidTargetArchitectures: 3
   AndroidMinSdkVersion: 24
   AndroidTargetSdkVersion: 34
+  activeInputHandler: 2

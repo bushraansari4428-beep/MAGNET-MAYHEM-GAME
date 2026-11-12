@@ -49,9 +49,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: success()
         with:
-          tag_name: v1.0.0
-          name: "Magnet Mayhem v1.0.0 (ARM64 64-Bit)"
-          body: "Official 64-bit ARM64 + ARMv7 Android APK for Magnet Mayhem. Fully compatible with Android 7.0 through Android 15."
+          tag_name: v1.0.1
+          name: "Magnet Mayhem v1.0.1 (Touch Fixed ARM64)"
+          body: "Official 64-bit ARM64 Android APK with multi-layer responsive mobile touch handling and activeInputHandler enabled."
           files: build/Android/MagnetMayhem.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
