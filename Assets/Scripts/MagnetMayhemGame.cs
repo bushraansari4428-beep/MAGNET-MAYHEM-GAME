@@ -104,6 +104,8 @@ namespace MagnetMayhem
         private RectTransform _levelSelectBtnRect;
         private RectTransform _shopBtnRect;
         private RectTransform _settingsBtnRect;
+        private float _gameplayInputCooldown = 0.6f;
+        private float _lastMenuTouchTime = 0f;
 
         private void Awake()
         {
@@ -265,6 +267,9 @@ namespace MagnetMayhem
         {
             float dt = Time.deltaTime;
 
+            if (_gameplayInputCooldown > 0f)
+                _gameplayInputCooldown -= dt;
+
             // Idle floating magnet animation
             if (_magnetTransform != null)
             {
@@ -296,6 +301,8 @@ namespace MagnetMayhem
             // Main Menu Direct Touch Fallback
             if (CurrentState == GameState.MAIN_MENU)
             {
+                ProceduralAudioController.Instance?.UpdateAttractHum(false, 0f);
+
                 Vector2 screenPos = Vector2.zero;
                 bool hasTouch = false;
                 try
@@ -305,7 +312,7 @@ namespace MagnetMayhem
                         for (int i = 0; i < Input.touchCount; i++)
                         {
                             Touch t = Input.GetTouch(i);
-                            if (t.phase == TouchPhase.Began || t.phase == TouchPhase.Ended)
+                            if (t.phase == TouchPhase.Began)
                             {
                                 screenPos = t.position;
                                 hasTouch = true;
@@ -313,7 +320,7 @@ namespace MagnetMayhem
                             }
                         }
                     }
-                    else if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonUp(0))
+                    else if (Input.GetMouseButtonDown(0))
                     {
                         screenPos = Input.mousePosition;
                         hasTouch = true;
@@ -328,41 +335,48 @@ namespace MagnetMayhem
                 {
                     CheckMainMenuTouch(screenPos);
                 }
+                return;
             }
 
-            // Gameplay Active Loop
-            if (CurrentState == GameState.ATTRACT_MODE || CurrentState == GameState.REPEL_MODE)
+            // Other UI screens (Level Select, Paused, GameOver, Win, Level Intro)
+            if (CurrentState == GameState.LEVEL_SELECT ||
+                CurrentState == GameState.PAUSED ||
+                CurrentState == GameState.LEVEL_COMPLETE ||
+                CurrentState == GameState.LEVEL_FAILED ||
+                CurrentState == GameState.LEVEL_START)
             {
-                // Detect One-Touch Tap anywhere on playable area (ignoring top pause button)
-                if (IsGameplayTapDetected())
+                ProceduralAudioController.Instance?.UpdateAttractHum(false, 0f);
+                return;
+            }
+
+            // Gameplay Active Loop (ATTRACT_MODE or REPEL_MODE)
+            if (CurrentState == GameState.ATTRACT_MODE)
+            {
+                if (_gameplayInputCooldown <= 0f && IsGameplayTapDetected())
                 {
                     TriggerPlayerRepelTap();
                 }
-
-                if (_activeBall != null)
-                {
-                    _activeBall.TickPhysics(dt, CurrentMagnetMode);
-
-                    // Highlight timing ring when ball enters launch zone
-                    bool ready = (_activeBall.CurrentState == BallState.READY_TO_REPEL);
-                    _perfectWindowRing.color = ready
-                        ? new Color(0.15f, 1.0f, 0.55f, 0.85f)
-                        : new Color(0.25f, 0.75f, 1.0f, 0.28f);
-
-                    float dist = Vector2.Distance(_activeBall.transform.position, _magnetPos);
-                    float prox01 = Mathf.Clamp01(1f - (dist / 4.2f));
-                    ProceduralAudioController.Instance?.UpdateAttractHum(CurrentMagnetMode == MagnetMode.ATTRACT, prox01);
-                }
-
-                for (int i = 0; i < _obstacles.Count; i++)
-                {
-                    if (_obstacles[i] != null)
-                        _obstacles[i].TickObstacle(dt, _activeBall, this);
-                }
             }
-            else
+
+            if (_activeBall != null)
             {
-                ProceduralAudioController.Instance?.UpdateAttractHum(false, 0f);
+                _activeBall.TickPhysics(dt, CurrentMagnetMode);
+
+                // Highlight timing ring when ball enters launch zone
+                bool ready = (_activeBall.CurrentState == BallState.READY_TO_REPEL);
+                _perfectWindowRing.color = ready
+                    ? new Color(0.15f, 1.0f, 0.55f, 0.85f)
+                    : new Color(0.25f, 0.75f, 1.0f, 0.28f);
+
+                float dist = Vector2.Distance(_activeBall.transform.position, _magnetPos);
+                float prox01 = Mathf.Clamp01(1f - (dist / 4.2f));
+                ProceduralAudioController.Instance?.UpdateAttractHum(CurrentMagnetMode == MagnetMode.ATTRACT, prox01);
+            }
+
+            for (int i = 0; i < _obstacles.Count; i++)
+            {
+                if (_obstacles[i] != null)
+                    _obstacles[i].TickObstacle(dt, _activeBall, this);
             }
         }
 
@@ -388,11 +402,15 @@ namespace MagnetMayhem
             float normX = (Screen.width > 0) ? (screenPos.x / Screen.width) : 0.5f;
             float normY = (Screen.height > 0) ? (screenPos.y / Screen.height) : 0.5f;
 
+            if (Time.unscaledTime - _lastMenuTouchTime < 0.35f) return;
+
             bool hitPlay = (_playBtnRect != null && (RectTransformUtility.RectangleContainsScreenPoint(_playBtnRect, screenPos, null) || RectTransformUtility.RectangleContainsScreenPoint(_playBtnRect, screenPos, _mainCam)))
                            || (normX >= 0.12f && normX <= 0.88f && normY >= 0.48f && normY <= 0.59f);
 
             if (hitPlay)
             {
+                _lastMenuTouchTime = Time.unscaledTime;
+                _gameplayInputCooldown = 0.8f;
                 ProceduralAudioController.Instance?.PlayClick();
                 _currentScore = 0;
                 StartLevel(_unlockedLevel);
@@ -432,8 +450,12 @@ namespace MagnetMayhem
 
         private bool IsGameplayTapDetected()
         {
+            if (_gameplayInputCooldown > 0f)
+                return false;
+
             bool pressed = false;
             Vector2 screenPos = Vector2.zero;
+            int fingerId = -1;
 
             try
             {
@@ -442,15 +464,16 @@ namespace MagnetMayhem
                     for (int i = 0; i < Input.touchCount; i++)
                     {
                         Touch t = Input.GetTouch(i);
-                        if (t.phase == TouchPhase.Began || t.phase == TouchPhase.Ended)
+                        if (t.phase == TouchPhase.Began)
                         {
                             pressed = true;
                             screenPos = t.position;
+                            fingerId = t.fingerId;
                             break;
                         }
                     }
                 }
-                else if (Input.GetMouseButtonDown(0) || Input.GetMouseButtonUp(0))
+                else if (Input.GetMouseButtonDown(0))
                 {
                     pressed = true;
                     screenPos = Input.mousePosition;
@@ -463,8 +486,17 @@ namespace MagnetMayhem
 
             if (!pressed) return false;
 
-            // Ignore taps on the top 11% of the screen where the Pause button sits
-            if (screenPos.y > Screen.height * 0.89f)
+            // Ignore taps on UI elements
+            if (UnityEngine.EventSystems.EventSystem.current != null)
+            {
+                if (fingerId >= 0 && UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject(fingerId))
+                    return false;
+                if (fingerId < 0 && UnityEngine.EventSystems.EventSystem.current.IsPointerOverGameObject())
+                    return false;
+            }
+
+            // Ignore taps on the top 13% where the Pause button sits
+            if (Screen.height > 0 && screenPos.y > Screen.height * 0.87f)
                 return false;
 
             return true;
@@ -472,17 +504,21 @@ namespace MagnetMayhem
 
         public void TriggerPlayerRepelTap()
         {
-            // Important Control Rule from GDD:
             // Only switch from ATTRACT -> REPEL while active ball is approaching.
-            // Do not allow accidental second tap while current ball is completing its delivery.
             if (CurrentState != GameState.ATTRACT_MODE || _activeBall == null)
                 return;
+
+            TimingResult timing = _activeBall.ActivateRepel();
+            if (timing == TimingResult.None)
+            {
+                // Ball was not in active launch range yet (still approaching or at spawn); keep attract mode!
+                return;
+            }
 
             CurrentMagnetMode = MagnetMode.REPEL;
             CurrentState = GameState.REPEL_MODE;
             ApplyMagnetSkinVisuals();
 
-            TimingResult timing = _activeBall.ActivateRepel();
             bool isPerfect = (timing == TimingResult.Perfect);
             ProceduralAudioController.Instance?.PlayRepel(isPerfect);
 
@@ -529,6 +565,7 @@ namespace MagnetMayhem
             _deliveredCount = 0;
             _spawnIndex = 0;
             _comboCount = 0;
+            _gameplayInputCooldown = 0.8f;
 
             // Configure timing rings scale to match level radii
             float outerScale = _activeLevel.goodWindowOuterRadius * 0.90f;
@@ -562,7 +599,20 @@ namespace MagnetMayhem
                 _hudTutorialBanner.SetActive(false);
             }
 
+            StopCoroutine(nameof(LevelIntroRoutine));
+            StartCoroutine(nameof(LevelIntroRoutine));
+        }
+
+        private IEnumerator LevelIntroRoutine()
+        {
+            CurrentState = GameState.LEVEL_START;
+            _gameplayInputCooldown = 0.7f;
+            ShowFloatingFeedback($"LEVEL {_activeLevel.levelNumber} - READY!", new Color(0.25f, 0.85f, 1f));
+
+            yield return new WaitForSeconds(0.45f);
+
             SpawnNextBall();
+            _gameplayInputCooldown = 0.35f;
         }
 
         private void SpawnLevelObstacles()
@@ -1306,7 +1356,6 @@ namespace MagnetMayhem
 
             Button btn = go.AddComponent<Button>();
             btn.targetGraphic = img;
-            btn.onClick.AddListener(onClick);
 
             ColorBlock cb = btn.colors;
             cb.normalColor = bgCol;
@@ -1322,14 +1371,10 @@ namespace MagnetMayhem
             AddGlowOutline(go, Color.Lerp(bgCol, Color.white, 0.55f), 3f);
             CreateLabel(go.transform, label, fontSize, Color.white, Vector2.zero, size - new Vector2(20, 10));
 
-            // Instant zero-latency touch responses for Android
+            // Instant zero-latency touch responses for Android with global debounce
             TouchButtonHandler touch = go.AddComponent<TouchButtonHandler>();
             touch.Initialize(onClick, bgCol, Color.white);
-
-            EventTrigger trigger = go.AddComponent<EventTrigger>();
-            EventTrigger.Entry entryDown = new EventTrigger.Entry { eventID = EventTriggerType.PointerDown };
-            entryDown.callback.AddListener((d) => { onClick?.Invoke(); });
-            trigger.triggers.Add(entryDown);
+            btn.onClick.AddListener(() => { touch.Trigger(); });
 
             return btn;
         }

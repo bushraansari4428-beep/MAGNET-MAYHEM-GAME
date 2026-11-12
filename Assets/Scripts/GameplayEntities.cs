@@ -14,6 +14,7 @@ namespace MagnetMayhem
         private float _mass = 1.0f;
         private float _speedMultiplier = 1.0f;
         private float _shieldTimer = 0f;
+        private float _spawnGraceTimer = 0f;
 
         private Vector2 _magnetPos;
         private Vector2 _correctTargetPos;
@@ -49,6 +50,7 @@ namespace MagnetMayhem
             transform.position = spawnPos;
             CurrentState = BallState.SPAWNING;
             LaunchTiming = TimingResult.None;
+            _spawnGraceTimer = 0.50f;
 
             // Configure mass & speed per Special Ball Type
             _mass = 1.0f;
@@ -117,6 +119,9 @@ namespace MagnetMayhem
 
             if (_shieldTimer > 0f)
                 _shieldTimer -= dt;
+
+            if (_spawnGraceTimer > 0f)
+                _spawnGraceTimer -= dt;
 
             if (CurrentState == BallState.APPROACHING ||
                 CurrentState == BallState.ATTRACTED ||
@@ -189,9 +194,22 @@ namespace MagnetMayhem
 
         public TimingResult ActivateRepel()
         {
-            float dist = Vector2.Distance(transform.position, _magnetPos);
-            CurrentState = BallState.REPELLING;
+            if (CurrentState == BallState.DELIVERED || CurrentState == BallState.FAILED)
+                return TimingResult.None;
 
+            // Grace period: ball was just spawned, ignore any premature tap
+            if (_spawnGraceTimer > 0f)
+                return TimingResult.None;
+
+            float dist = Vector2.Distance(transform.position, _magnetPos);
+
+            // If ball is still far away near the spawn launcher (> 1.25x good window radius), ignore tap completely
+            if (dist > _levelConfig.goodWindowOuterRadius * 1.25f)
+            {
+                return TimingResult.None;
+            }
+
+            CurrentState = BallState.REPELLING;
             float launchSpeed = _levelConfig.baseBallSpeed * 2.15f * _speedMultiplier;
 
             // 1. Check if inside PERFECT timing window
@@ -214,7 +232,7 @@ namespace MagnetMayhem
                 return LaunchTiming;
             }
 
-            // 3. Otherwise Player tapped TOO EARLY (outside launch ring)
+            // 3. True "Too Early" tap (Player tapped when ball was nearing the ring, between 1.0x and 1.25x good radius)
             LaunchTiming = TimingResult.TooEarly;
             Vector2 awayFromMagnet = ((Vector2)transform.position - _magnetPos).normalized;
             // Deflect off-target toward upper corners so player clearly sees it repelled too early
@@ -225,12 +243,12 @@ namespace MagnetMayhem
 
         private void CheckTargetsAndBounds(Vector2 pos)
         {
-            float catchRadius = 0.78f * _levelConfig.targetOpeningScale;
+            float catchRadius = 0.88f * _levelConfig.targetOpeningScale;
 
             // Bomb Ball special handling
             if (SpecialType == BallSpecialType.Bomb)
             {
-                if (Vector2.Distance(pos, _bombSafePos) <= 0.85f)
+                if (Vector2.Distance(pos, _bombSafePos) <= 0.90f)
                 {
                     CurrentState = BallState.DELIVERED;
                     _game.OnBallDelivered(this, LaunchTiming == TimingResult.Perfect);
@@ -264,7 +282,7 @@ namespace MagnetMayhem
             }
 
             // Out of playable area check
-            if (Mathf.Abs(pos.x) > 3.6f || pos.y < -5.2f || pos.y > 5.5f)
+            if (Mathf.Abs(pos.x) > 3.8f || pos.y < -5.4f || pos.y > 5.8f)
             {
                 CurrentState = BallState.FAILED;
                 string reason = (LaunchTiming == TimingResult.TooEarly)

@@ -49,9 +49,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         if: success()
         with:
-          tag_name: v1.0.1
-          name: "Magnet Mayhem v1.0.1 (Touch Fixed ARM64)"
-          body: "Official 64-bit ARM64 Android APK with multi-layer responsive mobile touch handling and activeInputHandler enabled."
+          tag_name: v1.0.2
+          name: "Magnet Mayhem v1.0.2 (Gameplay & Level Start Fixed)"
+          body: "Official 64-bit ARM64 Android APK. Fixes instant Game Over bug on level start, adds input cooldown debounce, spawn grace period, and smooth level intro countdown."
           files: build/Android/MagnetMayhem.apk
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
